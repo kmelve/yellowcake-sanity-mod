@@ -8,7 +8,13 @@ module.exports = {
   plugins: [
     'gatsby-plugin-react-helmet',
     'gatsby-transformer-yaml',
-
+    {
+      resolve: 'gatsby-source-sanity',
+      options: {
+        projectId: '81vdeq8f',
+        dataset: 'production'
+      }
+    },
     {
       resolve: 'gatsby-plugin-offline',
       options: {
