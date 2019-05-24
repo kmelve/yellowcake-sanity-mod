@@ -1,111 +1,55 @@
-const _ = require('lodash')
-const path = require('path')
-const { createFilePath } = require('gatsby-source-filesystem')
-const { fmImagesToRelative } = require('gatsby-remark-relative-images')
+const { isFuture } = require('date-fns')
+/**
+ * Implement Gatsby's Node APIs in this file.
+ *
+ * See: https://www.gatsbyjs.org/docs/node-apis/
+ */
 
-exports.createPages = ({ actions, graphql }) => {
-  const { createPage } = actions
+const { format } = require('date-fns')
 
-  return graphql(`
+async function createBlogPostPages (graphql, actions, reporter) {
+  const { createPage, createPageDependency } = actions
+  const result = await graphql(`
     {
-      allMarkdownRemark(limit: 1000) {
+      allSanityPost(
+        filter: { slug: { current: { ne: null } }, publishedAt: { ne: null } }
+      ) {
         edges {
           node {
             id
-            frontmatter {
-              template
-              title
-            }
-            fields {
-              slug
-              contentType
+            publishedAt
+            slug {
+              current
             }
           }
         }
       }
     }
-  `).then(result => {
-    if (result.errors) {
-      result.errors.forEach(e => console.error(e.toString()))
-      return Promise.reject(result.errors)
-    }
+  `)
 
-    const mdFiles = result.data.allMarkdownRemark.edges
+  if (result.errors) throw result.errors
 
-    const contentTypes = _.groupBy(mdFiles, 'node.fields.contentType')
+  const postEdges = (result.data.allSanityPost || {}).edges || []
 
-    _.each(contentTypes, (pages, contentType) => {
-      const pagesToCreate = pages.filter(page =>
-        // get pages with template field
-        _.get(page, `node.frontmatter.template`)
-      )
-      if (!pagesToCreate.length) return console.log(`Skipping ${contentType}`)
+  postEdges
+    .filter(edge => !isFuture(edge.node.publishedAt))
+    .forEach((edge, index) => {
+      const { id, slug = {}, publishedAt } = edge.node
+      const dateSegment = format(publishedAt, 'YYYY/MM')
+      const path = `/blog/${dateSegment}/${slug.current}/`
 
-      console.log(`Creating ${pagesToCreate.length} ${contentType}`)
+      reporter.info(`Creating blog post page: ${path}`)
 
-      pagesToCreate.forEach((page, index) => {
-        const id = page.node.id
-        createPage({
-          // page slug set in md frontmatter
-          path: page.node.fields.slug,
-          component: path.resolve(
-            `src/templates/${String(page.node.frontmatter.template)}.js`
-          ),
-          // additional data can be passed via context
-          context: {
-            id
-          }
-        })
+      createPage({
+        path,
+        component: require.resolve('./src/templates/SinglePost.js'),
+        context: { id: slug.current, date: new Date() }
       })
+
+      createPageDependency({ path, nodeId: id })
     })
-  })
 }
 
-exports.onCreateNode = ({ node, actions, getNode }) => {
-  const { createNodeField } = actions
-
-  // convert frontmatter images
-  fmImagesToRelative(node)
-
-  // Create smart slugs
-  // https://github.com/Vagr9K/gatsby-advanced-starter/blob/master/gatsby-node.js
-  let slug
-  if (node.internal.type === 'MarkdownRemark') {
-    const fileNode = getNode(node.parent)
-    const parsedFilePath = path.parse(fileNode.relativePath)
-
-    if (_.get(node, 'frontmatter.slug')) {
-      slug = `/${node.frontmatter.slug.toLowerCase()}/`
-    } else if (
-      // home page gets root slug
-      parsedFilePath.name === 'home' &&
-      parsedFilePath.dir === 'pages'
-    ) {
-      slug = `/`
-    } else if (_.get(node, 'frontmatter.title')) {
-      slug = `/${_.kebabCase(parsedFilePath.dir)}/${_.kebabCase(
-        node.frontmatter.title
-      )}/`
-    } else if (parsedFilePath.dir === '') {
-      slug = `/${parsedFilePath.name}/`
-    } else {
-      slug = `/${parsedFilePath.dir}/`
-    }
-
-    createNodeField({
-      node,
-      name: 'slug',
-      value: slug
-    })
-
-    // Add contentType to node.fields
-    createNodeField({
-      node,
-      name: 'contentType',
-      value: parsedFilePath.dir
-    })
-  }
+exports.createPages = async ({ graphql, actions, reporter }) => {
+  await createBlogPostPages(graphql, actions, reporter)
 }
-
-// Random fix for https://github.com/gatsbyjs/gatsby/issues/5700
-module.exports.resolvableExtensions = () => ['.json']
