@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOMServer from 'react-dom/server'
-import Marked from 'react-markdown'
+import BlockContent from '@sanity/block-content-to-react'
 import PropTypes from 'prop-types'
 import Image from './Image'
 
@@ -67,30 +67,8 @@ const HtmlBlock = ({ value }) => {
   )
 }
 
-const Content = ({ source, src, className = '' }) => {
-  // accepts either html or markdown
-  source = source || src || ''
-  if (source.match(/^</)) {
-    source = withContentImages(source)
-
-    return (
-      <div
-        className={`Content ${className}`}
-        dangerouslySetInnerHTML={{ __html: source }}
-      />
-    )
-  }
-
-  return (
-    <Marked
-      className={`Content ${className}`}
-      source={encodeMarkdownURIs(source)}
-      renderers={{
-        image: MyImage,
-        html: HtmlBlock
-      }}
-    />
-  )
+const Content = ({ source, className = '' }) => {
+  return <BlockContent className={className} blocks={source} />
 }
 
 Content.propTypes = {

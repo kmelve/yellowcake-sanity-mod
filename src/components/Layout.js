@@ -22,18 +22,11 @@ export default ({ children, meta, title }) => {
               image
             }
           }
-          allPosts: allMarkdownRemark(
-            filter: { fields: { contentType: { eq: "postCategories" } } }
-            sort: { order: DESC, fields: [frontmatter___date] }
-          ) {
+          allPosts: allSanityCategory{
             edges {
               node {
-                fields {
-                  slug
-                }
-                frontmatter {
-                  title
-                }
+                title
+
               }
             }
           }
@@ -45,7 +38,7 @@ export default ({ children, meta, title }) => {
           subNav = {
             posts: data.allPosts.hasOwnProperty('edges')
               ? data.allPosts.edges.map(post => {
-                  return { ...post.node.fields, ...post.node.frontmatter }
+                  return { ...post.node.fields, ...post.node }
                 })
               : false
           }

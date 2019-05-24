@@ -11,7 +11,7 @@ import './SinglePost.css'
 export const SinglePostTemplate = ({
   title,
   date,
-  body,
+  _rawBody,
   nextPostURL,
   prevPostURL,
   categories = []
@@ -61,7 +61,7 @@ export const SinglePostTemplate = ({
           )}
 
           <div className="SinglePost--InnerContent">
-            <Content source={body} />
+            <Content source={_rawBody} />
           </div>
 
           <div className="SinglePost--Pagination">
@@ -93,15 +93,15 @@ const SinglePost = ({ data: { post, allPosts } }) => {
   const thisEdge = allPosts.edges.find(edge => edge.node.id === post.id)
   return (
     <Layout
-      meta={post.frontmatter.meta || false}
-      title={post.frontmatter.title || false}
+      meta={post.meta || false}
+      title={post.title || false}
     >
       <SinglePostTemplate
         {...post}
-        {...post.frontmatter}
-        body={post.html}
-        nextPostURL={_get(thisEdge, 'next.fields.slug')}
-        prevPostURL={_get(thisEdge, 'previous.fields.slug')}
+        {...post}
+        body={post._rawBody}
+        nextPostURL={_get(thisEdge, 'next.fields.slug.current')}
+        prevPostURL={_get(thisEdge, 'previous.fields.slug.current')}
       />
     </Layout>
   )
@@ -114,47 +114,35 @@ export const pageQuery = graphql`
   ## Use GraphiQL interface (http://localhost:8000/___graphql)
   ## $id is processed via gatsby-node.js
   ## query name must be unique to this file
-  query SinglePost($id: String!) {
-    post: markdownRemark(id: { eq: $id }) {
-      ...Meta
-      html
-      id
-      frontmatter {
-        title
-        template
-        subtitle
-        date
-        categories {
-          category
-        }
-      }
+  query SinglePost($id: String!, $date: Date) {
+  post: sanityPost(slug: {current: {eq: $id}}) {
+    date: publishedAt
+    _rawBody
+    id
+    title
+    categories {
+      title
     }
-
-    allPosts: allMarkdownRemark(
-      filter: { fields: { contentType: { eq: "posts" } } }
-      sort: { order: DESC, fields: [frontmatter___date] }
-    ) {
-      edges {
-        node {
-          id
+  }
+  allPosts: allSanityPost(filter: {publishedAt: {gt: $date}}, sort: {order: DESC, fields: [publishedAt]}) {
+    edges {
+      node {
+        id
+      }
+      next {
+        slug {
+          current
         }
-        next {
-          fields {
-            slug
-          }
-          frontmatter {
-            title
-          }
+        title
+      }
+      previous {
+        slug {
+          current
         }
-        previous {
-          fields {
-            slug
-          }
-          frontmatter {
-            title
-          }
-        }
+        title
       }
     }
   }
+}
+
 `
